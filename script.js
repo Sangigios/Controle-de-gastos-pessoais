@@ -1,20 +1,12 @@
-// Busca a URL salva localmente no navegador do usuário
+// Puxa a URL criptografada/salva localmente no navegador do usuário
 let SCRIPT_URL = localStorage.getItem('mySheetsUrl') || "";
 
-// Se não houver nenhuma URL salva, pede para o usuário digitar
-if (!SCRIPT_URL) {
-    SCRIPT_URL = prompt("Por favor, insira a URL do seu Google Apps Script para conectar o banco de dados:");
-    
-    if (SCRIPT_URL && SCRIPT_URL.trim() !== "") {
-        localStorage.setItem('mySheetsUrl', SCRIPT_URL.trim());
-        alert("URL configurada com sucesso! Atualizando página...");
-        window.location.reload();
-    } else {
-        alert("Atenção: Sem a URL, o aplicativo funcionará apenas de forma local (sem salvar na nuvem).");
-    }
+// Alimenta o input de configuração com a URL salva (se houver)
+if (SCRIPT_URL) {
+    document.getElementById('sheetsUrlInput').value = SCRIPT_URL;
 }
 
-// Inicializa a lista buscando do LocalStorage ou criar array vazio
+// Inicializa com o que tiver no LocalStorage para o app abrir instantaneamente
 let debts = JSON.parse(localStorage.getItem('myDebts')) || [];
 
 // Define data local de hoje no input sem quebrar fuso horário
@@ -24,11 +16,32 @@ const mes = String(hojeLocal.getMonth() + 1).padStart(2, '0');
 const dia = String(hojeLocal.getDate()).padStart(2, '0');
 document.getElementById('debtDate').value = `${ano}-${mes}-${dia}`;
 
+// --- FUNÇÕES DE CONFIGURAÇÃO DO PAINEL ---
+
+function toggleSettingsPanel() {
+    const panel = document.getElementById('settingsPanel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+function saveSettings() {
+    const urlValue = document.getElementById('sheetsUrlInput').value.trim();
+    if (urlValue === "") {
+        localStorage.removeItem('mySheetsUrl');
+        SCRIPT_URL = "";
+        alert("URL removida. O app funcionará apenas de forma offline local.");
+    } else {
+        localStorage.setItem('mySheetsUrl', urlValue);
+        SCRIPT_URL = urlValue;
+        alert("Configuração de nuvem salva com sucesso! Sincronizando dados...");
+        carregarDadosDaPlanilha();
+    }
+    toggleSettingsPanel();
+}
+
 // --- FUNÇÕES DE INTEGRAÇÃO COM O GOOGLE SHEETS ---
 
-// Busca os dados da planilha ao carregar a página
 function carregarDadosDaPlanilha() {
-    if (!SCRIPT_URL || SCRIPT_URL.includes("SUA_URL")) return;
+    if (!SCRIPT_URL) return;
 
     fetch(SCRIPT_URL)
         .then(response => response.json())
@@ -44,9 +57,8 @@ function carregarDadosDaPlanilha() {
         .catch(error => console.error("Erro ao carregar dados da planilha:", error));
 }
 
-// Envia toda a lista atual para a planilha (trata adições, edições e deleções)
 function sincronizarComPlanilha() {
-    if (!SCRIPT_URL || SCRIPT_URL.includes("SUA_URL")) return;
+    if (!SCRIPT_URL) return;
 
     console.log("Sincronizando com a planilha em segundo plano...");
     
@@ -104,7 +116,7 @@ function handleFormSubmit(event) {
 
     saveToLocalStorage();
     renderDebts();
-    sincronizarComPlanilha(); // Dispara atualização para o Google Sheets
+    sincronizarComPlanilha();
 
     document.getElementById('debtDescription').value = '';
     document.getElementById('debtValue').value = '';
@@ -159,7 +171,7 @@ function deleteDebt(id) {
         debts = debts.filter(debt => debt.id !== id);
         saveToLocalStorage();
         renderDebts();
-        sincronizarComPlanilha(); // Atualiza remoção no Sheets
+        sincronizarComPlanilha();
     }
 }
 
@@ -171,7 +183,7 @@ function togglePaid(id) {
         return debt;
     });
     saveToLocalStorage();
-    sincronizarComPlanilha(); // Salva estado de pago no Sheets
+    sincronizarComPlanilha();
     
     const showPaid = document.getElementById('showPaidToggle').checked;
     if (!showPaid) {
@@ -298,7 +310,7 @@ function generateNextMonthDebts() {
 
         saveToLocalStorage();
         renderDebts();
-        sincronizarComPlanilha(); // Envia novos clones para o Sheets
+        sincronizarComPlanilha();
 
         if (count === 0) {
             alert("As dívidas recorrentes deste mês já tinham sido copiadas para o mês seguinte.");
@@ -338,9 +350,9 @@ function closeCustomAlert() {
     document.getElementById('customAlertModal').style.display = 'none';
 }
 
-// Inicialização síncrona com os dados locais
+// Inicialização síncrona local
 renderDebts();
 checkDebtsDueToday();
 
-// Inicialização assíncrona trazendo dados atualizados da nuvem (Google Sheets)
+// Inicialização remota assíncrona
 carregarDadosDaPlanilha();

@@ -13,10 +13,21 @@
 <body>
 
 <div class="container">
+    <button class="btn-settings" onclick="toggleSettingsPanel()">⚙️ Configurações</button>
+
     <header>
         <h1>Meus Gastos & Dívidas</h1>
         <p>Controle financeiro pessoal com persistência automática</p>
     </header>
+
+    <!-- NOVO: Painel de Configuração Oculto -->
+    <div class="settings-panel" id="settingsPanel">
+        <h3>🔗 Conectar Google Sheets (Nuvem)</h3>
+        <div class="settings-input-group">
+            <input type="password" id="sheetsUrlInput" placeholder="Cole aqui a URL do seu Google Apps Script (/exec)">
+            <button class="btn-save-settings" onclick="saveSettings()">Salvar Link</button>
+        </div>
+    </div>
 
     <div class="card">
         <div class="card-title" id="formTitle">Nova Dívida</div>
