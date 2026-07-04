@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Dívidas Pessoais</title>
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="icon" type="image/png" href="gastos.png">
+    <link rel="apple-touch-icon" href="gastos.png">
+
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Meus Gastos & Dívidas</h1>
+        <p>Controle financeiro pessoal com persistência automática</p>
+    </header>
+
+    <div class="card">
+        <div class="card-title" id="formTitle">Nova Dívida</div>
+        <form id="debtForm" onsubmit="handleFormSubmit(event)">
+            <input type="hidden" id="editDebtId">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="debtDate">Vencimento</label>
+                    <input type="date" id="debtDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="debtDescription">Descrição</label>
+                    <input type="text" id="debtDescription" placeholder="Ex: Internet, Cartão" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="debtValue">Valor (R$)</label>
+                    <input type="number" id="debtValue" step="0.01" placeholder="0,00" required>
+                </div>
+                <div class="form-group-checkbox">
+                    <input type="checkbox" id="debtRecurrent">
+                    <label for="debtRecurrent">Repetir todo mês</label>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="btn-add" id="btnSubmit">Adicionar</button>
+                    <button type="button" class="btn-cancel" id="btnCancel" onclick="cancelEdit()" style="display: none;">Cancelar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="controls-bar">
+        <div class="toggle-container">
+            <label class="switch">
+                <input type="checkbox" id="showPaidToggle" onchange="renderDebts()">
+                <span class="slider"></span>
+            </label>
+            <span id="toggleLabel">Exibir dívidas pagas</span>
+        </div>
+    </div>
+
+    <div class="actions-bar" style="margin-bottom: 15px;">
+        <button type="button" class="btn-recurrent-generator" onclick="generateNextMonthDebts()">
+            🔄 Copiar Dívidas Recorrentes para o Próximo Mês
+        </button>
+    </div>
+    
+    <div class="table-responsive">
+        <table id="debtsTable">
+            <thead>
+                <tr>
+                    <th class="checkbox-cell">Paga</th>
+                    <th>Vencimento</th>
+                    <th>Descrição</th>
+                    <th class="text-right">Valor</th>
+                    <th class="actions-cell">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="debtList"></tbody>
+        </table>
+        <div id="emptyMessage" class="empty-state" style="display: none;">
+            Nenhuma dívida encontrada.
+        </div>
+    </div>
+
+    <div class="totals-widget" id="totalsWidget">
+        Total Pendente: R$ 0,00
+    </div>
+</div>
+
+<!-- Janela de Alerta Personalizada (Modal) -->
+<div id="customAlertModal" class="modal-overlay" style="display: none;">
+    <div class="modal-box animate-pop">
+        <div class="modal-header">
+            <span class="modal-icon">⚠️</span>
+            <h2>Contas Vencendo Hoje!</h2>
+        </div>
+        <div class="modal-body">
+            <p>Atenção! Você tem as seguintes pendências para quitar hoje:</p>
+            <ul id="alertDebtsList"></ul>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-close" onclick="closeCustomAlert()">Entendido, vou pagar</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></scriptsr>
+</body>
+</html>
