@@ -1,20 +1,19 @@
-// Puxa a URL criptografada/salva localmente no navegador do usuário
-let SCRIPT_URL = localStorage.getItem('mySheetsUrl') || "";
+// MODIFICADO: Chaves com sufixo '_app2' para isolar o segundo aplicativo
+let SCRIPT_URL = localStorage.getItem('mySheetsUrl_app2') || "";
 
-// Alimenta o input de configuração com a URL salva (se houver)
 if (SCRIPT_URL) {
     document.getElementById('sheetsUrlInput').value = SCRIPT_URL;
 }
 
-// Inicializa com o que tiver no LocalStorage para o app abrir instantaneamente
-let gastos = JSON.parse(localStorage.getItem('mygastos')) || [];
+// MODIFICADO: Puxa as dívidas da nova chave independente
+let debts = JSON.parse(localStorage.getItem('myDebts_app2')) || [];
 
 // Define data local de hoje no input sem quebrar fuso horário
 const hojeLocal = new Date();
 const ano = hojeLocal.getFullYear();
 const mes = String(hojeLocal.getMonth() + 1).padStart(2, '0');
 const dia = String(hojeLocal.getDate()).padStart(2, '0');
-document.getElementById('gastoDate').value = `${ano}-${mes}-${dia}`;
+document.getElementById('debtDate').value = `${ano}-${mes}-${dia}`;
 
 // --- FUNÇÕES DE CONFIGURAÇÃO DO PAINEL ---
 
@@ -26,11 +25,13 @@ function toggleSettingsPanel() {
 function saveSettings() {
     const urlValue = document.getElementById('sheetsUrlInput').value.trim();
     if (urlValue === "") {
-        localStorage.removeItem('mySheetsUrl');
+        // MODIFICADO: Remove da chave do app 2
+        localStorage.removeItem('mySheetsUrl_app2');
         SCRIPT_URL = "";
         alert("URL removida. O app funcionará apenas de forma offline local.");
     } else {
-        localStorage.setItem('mySheetsUrl', urlValue);
+        // MODIFICADO: Salva na chave do app 2
+        localStorage.setItem('mySheetsUrl_app2', urlValue);
         SCRIPT_URL = urlValue;
         alert("Configuração de nuvem salva com sucesso! Sincronizando dados...");
         carregarDadosDaPlanilha();
@@ -47,10 +48,10 @@ function carregarDadosDaPlanilha() {
         .then(response => response.json())
         .then(data => {
             if (Array.isArray(data)) {
-                gastos = data;
+                debts = data;
                 saveToLocalStorage();
-                rendergastos();
-                checkgastosDueToday();
+                renderDebts();
+                checkDebtsDueToday();
                 console.log("Dados sincronizados da planilha com sucesso!");
             }
         })
@@ -66,7 +67,7 @@ function sincronizarComPlanilha() {
         method: "POST",
         body: JSON.stringify({
             action: "syncAll",
-            gastos: gastos
+            debts: debts
         })
     })
     .then(res => res.json())
@@ -79,18 +80,18 @@ function sincronizarComPlanilha() {
 function handleFormSubmit(event) {
     event.preventDefault();
 
-    const editIdInput = document.getElementById('editgastoId').value;
-    const dateInput = document.getElementById('gastoDate').value;
-    const descInput = document.getElementById('gastoDescription').value;
-    const valueInput = parseFloat(document.getElementById('gastoValue').value);
-    const isRecurrent = document.getElementById('gastoRecurrent').checked;
+    const editIdInput = document.getElementById('editDebtId').value;
+    const dateInput = document.getElementById('debtDate').value;
+    const descInput = document.getElementById('debtDescription').value;
+    const valueInput = parseFloat(document.getElementById('debtValue').value);
+    const isRecurrent = document.getElementById('debtRecurrent').checked;
 
     if (editIdInput) {
         const idToEdit = parseInt(editIdInput);
-        gastos = gastos.map(gasto => {
-            if (gasto.id === idToEdit) {
+        debts = debts.map(debt => {
+            if (debt.id === idToEdit) {
                 return {
-                    ...gasto,
+                    ...debt,
                     date: formatDateToDisplay(dateInput),
                     rawDate: dateInput,
                     description: descInput,
@@ -98,11 +99,11 @@ function handleFormSubmit(event) {
                     recurrent: isRecurrent
                 };
             }
-            return gasto;
+            return debt;
         });
         cancelEdit();
     } else {
-        const newgasto = {
+        const newDebt = {
             id: Date.now(),
             date: formatDateToDisplay(dateInput),
             rawDate: dateInput,
@@ -111,33 +112,33 @@ function handleFormSubmit(event) {
             paid: false,
             recurrent: isRecurrent
         };
-        gastos.push(newgasto);
+        debts.push(newDebt);
     }
 
     saveToLocalStorage();
-    rendergastos();
+    renderDebts();
     sincronizarComPlanilha();
 
-    document.getElementById('gastoDescription').value = '';
-    document.getElementById('gastoValue').value = '';
-    document.getElementById('gastoRecurrent').checked = false;
-    document.getElementById('gastoDescription').focus();
+    document.getElementById('debtDescription').value = '';
+    document.getElementById('debtValue').value = '';
+    document.getElementById('debtRecurrent').checked = false;
+    document.getElementById('debtDescription').focus();
 }
 
-function editgasto(id) {
-    const gastoToEdit = gastos.find(gasto => gasto.id === id);
-    if (!gastoToEdit) return;
+function editDebt(id) {
+    const debtToEdit = debts.find(debt => debt.id === id);
+    if (!debtToEdit) return;
 
     document.getElementById('formTitle').innerText = "Editar Dívida";
     document.getElementById('btnSubmit').innerText = "Salvar Alteração";
     document.getElementById('btnSubmit').style.backgroundColor = "#3498db";
     document.getElementById('btnCancel').style.display = "inline-block";
 
-    document.getElementById('editgastoId').value = gastoToEdit.id;
-    document.getElementById('gastoDate').value = gastoToEdit.rawDate;
-    document.getElementById('gastoDescription').value = gastoToEdit.description;
-    document.getElementById('gastoValue').value = gastoToEdit.value;
-    document.getElementById('gastoRecurrent').checked = gastoToEdit.recurrent || false;
+    document.getElementById('editDebtId').value = debtToEdit.id;
+    document.getElementById('debtDate').value = debtToEdit.rawDate;
+    document.getElementById('debtDescription').value = debtToEdit.description;
+    document.getElementById('debtValue').value = debtToEdit.value;
+    document.getElementById('debtRecurrent').checked = debtToEdit.recurrent || false;
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -148,53 +149,54 @@ function cancelEdit() {
     document.getElementById('btnSubmit').style.backgroundColor = "#2ecc71";
     document.getElementById('btnCancel').style.display = "none";
 
-    document.getElementById('editgastoId').value = '';
+    document.getElementById('editDebtId').value = '';
     
     const hojeLocal = new Date();
     const ano = hojeLocal.getFullYear();
     const mes = String(hojeLocal.getMonth() + 1).padStart(2, '0');
     const dia = String(hojeLocal.getDate()).padStart(2, '0');
-    document.getElementById('gastoDate').value = `${ano}-${mes}-${dia}`;
+    document.getElementById('debtDate').value = `${ano}-${mes}-${dia}`;
     
-    document.getElementById('gastoDescription').value = '';
-    document.getElementById('gastoValue').value = '';
-    document.getElementById('gastoRecurrent').checked = false;
+    document.getElementById('debtDescription').value = '';
+    document.getElementById('debtValue').value = '';
+    document.getElementById('debtRecurrent').checked = false;
 }
 
-function deletegasto(id) {
+function deleteDebt(id) {
     if (confirm("Tem certeza que deseja excluir esta dívida definitivamente?")) {
-        const currentEditId = document.getElementById('editgastoId').value;
+        const currentEditId = document.getElementById('editDebtId').value;
         if (currentEditId && parseInt(currentEditId) === id) {
             cancelEdit();
         }
 
-        gastos = gastos.filter(gasto => gasto.id !== id);
+        debts = debts.filter(debt => debt.id !== id);
         saveToLocalStorage();
-        rendergastos();
+        renderDebts();
         sincronizarComPlanilha();
     }
 }
 
 function togglePaid(id) {
-    gastos = gastos.map(gasto => {
-        if(gasto.id === id) {
-            return { ...gasto, paid: !gasto.paid };
+    debts = debts.map(debt => {
+        if(debt.id === id) {
+            return { ...debt, paid: !debt.paid };
         }
-        return gasto;
+        return debt;
     });
     saveToLocalStorage();
     sincronizarComPlanilha();
     
     const showPaid = document.getElementById('showPaidToggle').checked;
     if (!showPaid) {
-        setTimeout(rendergastos, 250);
+        setTimeout(renderDebts, 250);
     } else {
-        rendergastos();
+        renderDebts();
     }
 }
 
 function saveToLocalStorage() {
-    localStorage.setItem('mygastos', JSON.stringify(gastos));
+    // MODIFICADO: Salva a lista de dívidas na chave separada do app 2
+    localStorage.setItem('myDebts_app2', JSON.stringify(debts));
 }
 
 function formatDateToDisplay(dateString) {
@@ -203,87 +205,87 @@ function formatDateToDisplay(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-function rendergastos() {
-    const gastoList = document.getElementById('gastoList');
+function renderDebts() {
+    const debtList = document.getElementById('debtList');
     const emptyMessage = document.getElementById('emptyMessage');
     const showPaid = document.getElementById('showPaidToggle').checked;
     
-    gastoList.innerHTML = '';
+    debtList.innerHTML = '';
     
-    const filteredgastos = gastos.filter(gasto => showPaid ? true : !gasto.paid);
+    const filteredDebts = debts.filter(debt => showPaid ? true : !debt.paid);
     
-    let totalPending = gastos.reduce((acc, current) => !current.paid ? acc + current.value : acc, 0);
+    let totalPending = debts.reduce((acc, current) => !current.paid ? acc + current.value : acc, 0);
     document.getElementById('totalsWidget').innerText = `Total Pendente: ${totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
 
-    if (filteredgastos.length === 0) {
+    if (filteredDebts.length === 0) {
         emptyMessage.style.display = 'block';
-        document.getElementById('gastosTable').style.display = 'none';
+        document.getElementById('debtsTable').style.display = 'none';
         return;
     }
 
     emptyMessage.style.display = 'none';
-    document.getElementById('gastosTable').style.display = 'table';
+    document.getElementById('debtsTable').style.display = 'table';
 
-    filteredgastos.sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
+    filteredDebts.sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
 
-    filteredgastos.forEach(gasto => {
+    filteredDebts.forEach(debt => {
         const tr = document.createElement('tr');
-        if(gasto.paid) tr.classList.add('row-paid');
+        if(debt.paid) tr.classList.add('row-paid');
 
         tr.innerHTML = `
             <td class="checkbox-cell">
-                <input type="checkbox" ${gasto.paid ? 'checked' : ''} onchange="togglePaid(${gasto.id})">
+                <input type="checkbox" ${debt.paid ? 'checked' : ''} onchange="togglePaid(${debt.id})">
             </td>
-            <td>${gasto.date}</td>
-            <td>${gasto.description}</td>
-            <td class="text-right">${gasto.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+            <td>${debt.date}</td>
+            <td>${debt.description}</td>
+            <td class="text-right">${debt.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             <td class="actions-cell">
-                <button class="btn-action btn-edit" onclick="editgasto(${gasto.id})">Editar</button>
-                <button class="btn-action btn-delete" onclick="deletegasto(${gasto.id})">Excluir</button>
+                <button class="btn-action btn-edit" onclick="editDebt(${debt.id})">Editar</button>
+                <button class="btn-action btn-delete" onclick="deleteDebt(${debt.id})">Excluir</button>
             </td>
         `;
-        gastoList.appendChild(tr);
+        debtList.appendChild(tr);
     });
 }
 
-function generateNextMonthgastos() {
+function generateNextMonthDebts() {
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
     const mesAtual = hoje.getMonth(); 
 
-    const recurrentgastosFromThisMonth = gastos.filter(gasto => {
-        if (!gasto.recurrent) return false;
-        const parts = gasto.rawDate.split('-');
-        const gastoYear = parseInt(parts[0], 10);
-        const gastoMonth = parseInt(parts[1], 10) - 1; 
-        return gastoMonth === mesAtual && gastoYear === anoAtual;
+    const recurrentDebtsFromThisMonth = debts.filter(debt => {
+        if (!debt.recurrent) return false;
+        const parts = debt.rawDate.split('-');
+        const debtYear = parseInt(parts[0], 10);
+        const debtMonth = parseInt(parts[1], 10) - 1; 
+        return debtMonth === mesAtual && debtYear === anoAtual;
     });
 
-    if (recurrentgastosFromThisMonth.length === 0) {
+    if (recurrentDebtsFromThisMonth.length === 0) {
         const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         alert(`Nenhuma dívida marcada como recorrente foi encontrada para o mês atual (${nomeMeses[mesAtual]} de ${anoAtual}).`);
         return;
     }
 
-    if (confirm(`Deseja copiar as ${recurrentgastosFromThisMonth.length} dívidas recorrentes deste mês para o mês seguinte?`)) {
+    if (confirm(`Deseja copiar as ${recurrentDebtsFromThisMonth.length} dívidas recorrentes deste mês para o mês seguinte?`)) {
         let count = 0;
         
         let proximoMesData = new Date(anoAtual, mesAtual + 1, 1);
         const anoProximo = proximoMesData.getFullYear();
         const mesProximo = proximoMesData.getMonth();
 
-        const gastosAlreadyInNextMonth = gastos.filter(gasto => {
-            const parts = gasto.rawDate.split('-');
+        const debtsAlreadyInNextMonth = debts.filter(debt => {
+            const parts = debt.rawDate.split('-');
             const dYear = parseInt(parts[0], 10);
             const dMonth = parseInt(parts[1], 10) - 1;
             return dMonth === mesProximo && dYear === anoProximo;
         });
 
-        recurrentgastosFromThisMonth.forEach(gasto => {
-            const jaExiste = gastosAlreadyInNextMonth.some(nextgasto => nextgasto.description.toLowerCase() === gasto.description.toLowerCase());
+        recurrentDebtsFromThisMonth.forEach(debt => {
+            const jaExiste = debtsAlreadyInNextMonth.some(nextDebt => nextDebt.description.toLowerCase() === debt.description.toLowerCase());
             
             if (!jaExiste) {
-                const parts = gasto.rawDate.split('-');
+                const parts = debt.rawDate.split('-');
                 let itemDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
                 
                 itemDate.setMonth(itemDate.getMonth() + 1);
@@ -293,23 +295,23 @@ function generateNextMonthgastos() {
                 const nextDay = String(itemDate.getDate()).padStart(2, '0');
                 const nextRawDate = `${nextYear}-${nextMonth}-${nextDay}`;
 
-                const clonedgasto = {
+                const clonedDebt = {
                     id: Date.now() + count, 
                     date: `${nextDay}/${nextMonth}/${nextYear}`,
                     rawDate: nextRawDate,
-                    description: gasto.description,
-                    value: gasto.value,
+                    description: debt.description,
+                    value: debt.value,
                     paid: false,       
                     recurrent: true    
                 };
 
-                gastos.push(clonedgasto);
+                debts.push(clonedDebt);
                 count++;
             }
         });
 
         saveToLocalStorage();
-        rendergastos();
+        renderDebts();
         sincronizarComPlanilha();
 
         if (count === 0) {
@@ -320,25 +322,25 @@ function generateNextMonthgastos() {
     }
 }
 
-function checkgastosDueToday() {
+function checkDebtsDueToday() {
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     const dia = String(hoje.getDate()).padStart(2, '0');
     const dataHojeFormatada = `${ano}-${mes}-${dia}`;
 
-    const dividasDeHoje = gastos.filter(gasto => {
-        return gasto.rawDate === dataHojeFormatada && !gasto.paid;
+    const dividasDeHoje = debts.filter(debt => {
+        return debt.rawDate === dataHojeFormatada && !debt.paid;
     });
 
     if (dividasDeHoje.length > 0) {
-        const listContainer = document.getElementById('alertgastosList');
+        const listContainer = document.getElementById('alertDebtsList');
         listContainer.innerHTML = ''; 
 
-        dividasDeHoje.forEach(gasto => {
+        dividasDeHoje.forEach(debt => {
             const li = document.createElement('li');
-            const valorFormatado = gasto.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            li.innerHTML = `<span>• ${gasto.description}</span><span class="gasto-value">${valorFormatado}</span>`;
+            const valorFormatado = debt.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            li.innerHTML = `<span>• ${debt.description}</span><span class="debt-value">${valorFormatado}</span>`;
             listContainer.appendChild(li);
         });
 
@@ -351,8 +353,8 @@ function closeCustomAlert() {
 }
 
 // Inicialização síncrona local
-rendergastos();
-checkgastosDueToday();
+renderDebts();
+checkDebtsDueToday();
 
 // Inicialização remota assíncrona
 carregarDadosDaPlanilha();
