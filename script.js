@@ -135,7 +135,8 @@ function editDebt(id) {
     document.getElementById('btnCancel').style.display = "inline-block";
 
     document.getElementById('editDebtId').value = debtToEdit.id;
-    document.getElementById('debtDate').value = debtToEdit.rawDate;
+    document.getElementById('debtDate').value = debtToEdit.rawDate.includes('T') ? debtToEdit.rawDate.split('T')[0] : debtToEdit.rawDate;
+    //document.getElementById('debtDate').value = debtToEdit.rawDate;
     document.getElementById('debtDescription').value = debtToEdit.description;
     document.getElementById('debtValue').value = debtToEdit.value;
     document.getElementById('debtRecurrent').checked = debtToEdit.recurrent || false;
@@ -199,8 +200,21 @@ function saveToLocalStorage() {
     localStorage.setItem('myDebts_app2', JSON.stringify(debts));
 }
 
-function formatDateToDisplay(dateString) {
+/*function formatDateToDisplay(dateString) {
     if(!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+}*/
+
+function formatDateToDisplay(dateString) {
+    if (!dateString) return '';
+    
+    // Se a data vier no formato completo da nuvem (ex: 2026-07-06T03:00:00.000Z)
+    // pegamos apenas os primeiros 10 caracteres: "2026-07-06"
+    if (dateString.includes('T')) {
+        dateString = dateString.split('T')[0];
+    }
+    
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
 }
@@ -232,11 +246,19 @@ function renderDebts() {
         const tr = document.createElement('tr');
         if(debt.paid) tr.classList.add('row-paid');
 
+        // GARANTIA: Se a data guardada tiver "T", limpamos para o formato DD/MM/AAAA na hora de exibir
+        let dataExibicao = debt.date;
+        if (dataExibicao && dataExibicao.includes('T')) {
+            const apenasData = dataExibicao.split('T')[0]; // Pega "2026-07-06"
+            const [ano, mes, dia] = apenasData.split('-');
+            dataExibicao = `${dia}/${mes}/${ano}`;
+        }
+
         tr.innerHTML = `
             <td class="checkbox-cell">
                 <input type="checkbox" ${debt.paid ? 'checked' : ''} onchange="togglePaid(${debt.id})">
             </td>
-            <td>${debt.date}</td>
+            <td>${dataExibicao}</td>
             <td>${debt.description}</td>
             <td class="text-right">${debt.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             <td class="actions-cell">
