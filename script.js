@@ -385,7 +385,11 @@ function closeCustomAlert() {
 
 // Inicialização síncrona local
 renderDebts();
-checkDebtsDueToday();
 
-// Inicialização remota assíncrona
+// SE NÃO houver URL da planilha (App Offline), checa as dívidas locais imediatamente
+if (!SCRIPT_URL) {
+    checkDebtsDueToday();
+}
+
+// Inicialização remota assíncrona (se houver URL, ela chamará o checkDebtsDueToday lá dentro)
 carregarDadosDaPlanilha();
