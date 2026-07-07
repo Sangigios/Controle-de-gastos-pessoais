@@ -345,14 +345,23 @@ function generateNextMonthDebts() {
 }
 
 function checkDebtsDueToday() {
+    // Pegamos o ano, mês e dia da máquina do usuário (fuso local)
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     const dia = String(hoje.getDate()).padStart(2, '0');
+    
+    // Monta o formato exato "YYYY-MM-DD" do dia atual
     const dataHojeFormatada = `${ano}-${mes}-${dia}`;
 
+    // Filtra apenas as que batem exatamente com hoje e não estão pagas
     const dividasDeHoje = debts.filter(debt => {
-        return debt.rawDate === dataHojeFormatada && !debt.paid;
+        if (debt.paid) return false;
+
+        // Limpa a string caso a data venha com o "T" do fuso horário da nuvem (Google Sheets)
+        let rawDateClean = debt.rawDate.includes('T') ? debt.rawDate.split('T')[0] : debt.rawDate;
+
+        return rawDateClean === dataHojeFormatada;
     });
 
     if (dividasDeHoje.length > 0) {
