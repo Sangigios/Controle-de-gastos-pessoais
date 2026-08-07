@@ -25,12 +25,10 @@ function toggleSettingsPanel() {
 function saveSettings() {
     const urlValue = document.getElementById('sheetsUrlInput').value.trim();
     if (urlValue === "") {
-        // MODIFICADO: Remove da chave do app 2
         localStorage.removeItem('mySheetsUrl_app2');
         SCRIPT_URL = "";
         alert("URL removida. O app funcionará apenas de forma offline local.");
     } else {
-        // MODIFICADO: Salva na chave do app 2
         localStorage.setItem('mySheetsUrl_app2', urlValue);
         SCRIPT_URL = urlValue;
         alert("Configuração de nuvem salva com sucesso! Sincronizando dados...");
@@ -48,7 +46,12 @@ function carregarDadosDaPlanilha() {
         .then(response => response.json())
         .then(data => {
             if (Array.isArray(data)) {
-                debts = data;
+                // Garante que cada item tenha um ID válido e único tratado como string/número coeso
+                debts = data.map(debt => ({
+                    ...debt,
+                    id: String(debt.id),
+                    value: parseFloat(debt.value) || 0
+                }));
                 saveToLocalStorage();
                 renderDebts();
                 checkDebtsDueToday();
@@ -87,9 +90,9 @@ function handleFormSubmit(event) {
     const isRecurrent = document.getElementById('debtRecurrent').checked;
 
     if (editIdInput) {
-        const idToEdit = parseInt(editIdInput);
+        const idToEdit = String(editIdInput);
         debts = debts.map(debt => {
-            if (debt.id === idToEdit) {
+            if (String(debt.id) === idToEdit) {
                 return {
                     ...debt,
                     date: formatDateToDisplay(dateInput),
@@ -103,8 +106,9 @@ function handleFormSubmit(event) {
         });
         cancelEdit();
     } else {
+        // CORREÇÃO: Cria ID único combinando Timestamp com um número aleatório
         const newDebt = {
-            id: Date.now(),
+            id: String(Date.now() + Math.floor(Math.random() * 10000)),
             date: formatDateToDisplay(dateInput),
             rawDate: dateInput,
             description: descInput,
@@ -126,7 +130,7 @@ function handleFormSubmit(event) {
 }
 
 function editDebt(id) {
-    const debtToEdit = debts.find(debt => debt.id === id);
+    const debtToEdit = debts.find(debt => String(debt.id) === String(id));
     if (!debtToEdit) return;
 
     document.getElementById('formTitle').innerText = "Editar Dívida";
@@ -136,7 +140,6 @@ function editDebt(id) {
 
     document.getElementById('editDebtId').value = debtToEdit.id;
     document.getElementById('debtDate').value = debtToEdit.rawDate.includes('T') ? debtToEdit.rawDate.split('T')[0] : debtToEdit.rawDate;
-    //document.getElementById('debtDate').value = debtToEdit.rawDate;
     document.getElementById('debtDescription').value = debtToEdit.description;
     document.getElementById('debtValue').value = debtToEdit.value;
     document.getElementById('debtRecurrent').checked = debtToEdit.recurrent || false;
@@ -166,11 +169,12 @@ function cancelEdit() {
 function deleteDebt(id) {
     if (confirm("Tem certeza que deseja excluir esta dívida definitivamente?")) {
         const currentEditId = document.getElementById('editDebtId').value;
-        if (currentEditId && parseInt(currentEditId) === id) {
+        if (currentEditId && String(currentEditId) === String(id)) {
             cancelEdit();
         }
 
-        debts = debts.filter(debt => debt.id !== id);
+        // CORREÇÃO: Compara os IDs convertidos em string para garantir remoção de apenas 1 item
+        debts = debts.filter(debt => String(debt.id) !== String(id));
         saveToLocalStorage();
         renderDebts();
         sincronizarComPlanilha();
@@ -179,7 +183,7 @@ function deleteDebt(id) {
 
 function togglePaid(id) {
     debts = debts.map(debt => {
-        if(debt.id === id) {
+        if(String(debt.id) === String(id)) {
             return { ...debt, paid: !debt.paid };
         }
         return debt;
@@ -196,21 +200,12 @@ function togglePaid(id) {
 }
 
 function saveToLocalStorage() {
-    // MODIFICADO: Salva a lista de dívidas na chave separada do app 2
     localStorage.setItem('myDebts_app2', JSON.stringify(debts));
 }
-
-/*function formatDateToDisplay(dateString) {
-    if(!dateString) return '';
-    const [year, month, day] = dateString.split('-');
-    return `${day}/${month}/${year}`;
-}*/
 
 function formatDateToDisplay(dateString) {
     if (!dateString) return '';
     
-    // Se a data vier no formato completo da nuvem (ex: 2026-07-06T03:00:00.000Z)
-    // pegamos apenas os primeiros 10 caracteres: "2026-07-06"
     if (dateString.includes('T')) {
         dateString = dateString.split('T')[0];
     }
@@ -246,30 +241,30 @@ function renderDebts() {
         const tr = document.createElement('tr');
         if(debt.paid) tr.classList.add('row-paid');
 
-        // GARANTIA: Se a data guardada tiver "T", limpamos para o formato DD/MM/AAAA na hora de exibir
         let dataExibicao = debt.date;
         if (dataExibicao && dataExibicao.includes('T')) {
-            const apenasData = dataExibicao.split('T')[0]; // Pega "2026-07-06"
+            const apenasData = dataExibicao.split('T')[0];
             const [ano, mes, dia] = apenasData.split('-');
             dataExibicao = `${dia}/${mes}/${ano}`;
         }
 
         tr.innerHTML = `
             <td class="checkbox-cell">
-                <input type="checkbox" ${debt.paid ? 'checked' : ''} onchange="togglePaid(${debt.id})">
+                <input type="checkbox" ${debt.paid ? 'checked' : ''} onchange="togglePaid('${debt.id}')">
             </td>
             <td>${dataExibicao}</td>
             <td>${debt.description}</td>
             <td class="text-right">${debt.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
             <td class="actions-cell">
-                <button class="btn-action btn-edit" onclick="editDebt(${debt.id})">Editar</button>
-                <button class="btn-action btn-delete" onclick="deleteDebt(${debt.id})">Excluir</button>
+                <button class="btn-action btn-edit" onclick="editDebt('${debt.id}')">Editar</button>
+                <button class="btn-action btn-delete" onclick="deleteDebt('${debt.id}')">Excluir</button>
             </td>
         `;
         debtList.appendChild(tr);
     });
 }
 
+// CORREÇÃO: Cópia blindada de recorrentes usando IDs únicos e checagem de nome + valor
 function generateNextMonthDebts() {
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
@@ -277,7 +272,8 @@ function generateNextMonthDebts() {
 
     const recurrentDebtsFromThisMonth = debts.filter(debt => {
         if (!debt.recurrent) return false;
-        const parts = debt.rawDate.split('-');
+        const cleanDate = debt.rawDate.includes('T') ? debt.rawDate.split('T')[0] : debt.rawDate;
+        const parts = cleanDate.split('-');
         const debtYear = parseInt(parts[0], 10);
         const debtMonth = parseInt(parts[1], 10) - 1; 
         return debtMonth === mesAtual && debtYear === anoAtual;
@@ -291,23 +287,28 @@ function generateNextMonthDebts() {
 
     if (confirm(`Deseja copiar as ${recurrentDebtsFromThisMonth.length} dívidas recorrentes deste mês para o mês seguinte?`)) {
         let count = 0;
-        
         let proximoMesData = new Date(anoAtual, mesAtual + 1, 1);
         const anoProximo = proximoMesData.getFullYear();
         const mesProximo = proximoMesData.getMonth();
 
         const debtsAlreadyInNextMonth = debts.filter(debt => {
-            const parts = debt.rawDate.split('-');
+            const cleanDate = debt.rawDate.includes('T') ? debt.rawDate.split('T')[0] : debt.rawDate;
+            const parts = cleanDate.split('-');
             const dYear = parseInt(parts[0], 10);
             const dMonth = parseInt(parts[1], 10) - 1;
             return dMonth === mesProximo && dYear === anoProximo;
         });
 
         recurrentDebtsFromThisMonth.forEach(debt => {
-            const jaExiste = debtsAlreadyInNextMonth.some(nextDebt => nextDebt.description.toLowerCase() === debt.description.toLowerCase());
+            // Checa por descrição limpa E valor para evitar cópias falsas
+            const jaExiste = debtsAlreadyInNextMonth.some(nextDebt => 
+                nextDebt.description.trim().toLowerCase() === debt.description.trim().toLowerCase() &&
+                parseFloat(nextDebt.value) === parseFloat(debt.value)
+            );
             
             if (!jaExiste) {
-                const parts = debt.rawDate.split('-');
+                const cleanDate = debt.rawDate.includes('T') ? debt.rawDate.split('T')[0] : debt.rawDate;
+                const parts = cleanDate.split('-');
                 let itemDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
                 
                 itemDate.setMonth(itemDate.getMonth() + 1);
@@ -317,8 +318,9 @@ function generateNextMonthDebts() {
                 const nextDay = String(itemDate.getDate()).padStart(2, '0');
                 const nextRawDate = `${nextYear}-${nextMonth}-${nextDay}`;
 
+                // ID aleatório forte para garantir que NUNCA repita ID
                 const clonedDebt = {
-                    id: Date.now() + count, 
+                    id: String(Date.now() + Math.floor(Math.random() * 100000)), 
                     date: `${nextDay}/${nextMonth}/${nextYear}`,
                     rawDate: nextRawDate,
                     description: debt.description,
@@ -345,22 +347,16 @@ function generateNextMonthDebts() {
 }
 
 function checkDebtsDueToday() {
-    // Pegamos o ano, mês e dia da máquina do usuário (fuso local)
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     const dia = String(hoje.getDate()).padStart(2, '0');
     
-    // Monta o formato exato "YYYY-MM-DD" do dia atual
     const dataHojeFormatada = `${ano}-${mes}-${dia}`;
 
-    // Filtra apenas as que batem exatamente com hoje e não estão pagas
     const dividasDeHoje = debts.filter(debt => {
         if (debt.paid) return false;
-
-        // Limpa a string caso a data venha com o "T" do fuso horário da nuvem (Google Sheets)
         let rawDateClean = debt.rawDate.includes('T') ? debt.rawDate.split('T')[0] : debt.rawDate;
-
         return rawDateClean === dataHojeFormatada;
     });
 
@@ -386,10 +382,8 @@ function closeCustomAlert() {
 // Inicialização síncrona local
 renderDebts();
 
-// SE NÃO houver URL da planilha (App Offline), checa as dívidas locais imediatamente
 if (!SCRIPT_URL) {
     checkDebtsDueToday();
 }
 
-// Inicialização remota assíncrona (se houver URL, ela chamará o checkDebtsDueToday lá dentro)
 carregarDadosDaPlanilha();
